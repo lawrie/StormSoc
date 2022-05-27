@@ -2,15 +2,13 @@
 
 #include "generated/soc.h"
 
-volatile gpio_regs_t *gpio;
-
 void main() {
 	puts("StormSoc\n");
 
-	gpio->oe = 1;
-	gpio->out = 1;
+	LED_GPIO->oe = 1;
+	LED_GPIO->out = 1;
 	while(1) {
-		gpio->out = ~gpio->out;
+		LED_GPIO->out = ~LED_GPIO->out;
 		for(int i=0;i<10000;i++) asm volatile ("");
 		puts("Hello\n");
 	};
