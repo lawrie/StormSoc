@@ -1,0 +1,4 @@
+setuptools~=49.2.1
+amaranth~=0.4.dev19+g8b85afa
+pyserial~=3.5
+minerva~=0.1

@@ -1,0 +1,7 @@
+generated/
+build/
+__pycache__
+*.bin
+*.elf
+
+
