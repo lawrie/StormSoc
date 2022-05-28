@@ -44,8 +44,8 @@ class StormSoC(SoCWrapper):
         self._arbiter = wishbone.Arbiter(addr_width=30, data_width=32, granularity=8)
         self._decoder = wishbone.Decoder(addr_width=30, data_width=32, granularity=8)
 
-        self.cpu = Minerva(with_icache=True, icache_nlines=8, icache_limit=0x800,
-                           with_dcache=True, dcache_nlines=8, dcache_limit=0x400)
+        self.cpu = Minerva(with_icache=False, icache_nlines=8, icache_limit=0x800,
+                           with_dcache=False, dcache_nlines=8, dcache_limit=0x400)
         self.ibus = wishbone.Interface(addr_width=30, data_width=32, granularity=8,
                                        features={"err", "cti", "bte"})
         self.dbus = wishbone.Interface(addr_width=30, data_width=32, granularity=8,
