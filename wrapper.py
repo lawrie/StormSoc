@@ -64,37 +64,23 @@ class SoCWrapper(Elaboratable):
         return uart
 
     def get_hram(self, m, platform):
-        # Dual HyperRAM PMOD, starting at GPIO 0+/-
-        hram = HyperRAMPins(cs_count=4)
+        # HyperRam on the Blackice Nxt board
+        hram = HyperRAMPins(cs_count=1)
         if self.is_sim(platform):
             m.submodules.hram = platform.add_model("hyperram_model", hram, edge_det=['clk_o', ])
         else:
-            platform.add_resources([
-                Resource("hyperram", 0,
-                    Subsignal("csn",    Pins("9- 9+ 10- 10+", conn=("gpio", 0), dir='o')),
-                    Subsignal("rstn",   Pins("8+", conn=("gpio", 0), dir='o')),
-                    Subsignal("clk",    Pins("8-", conn=("gpio", 0), dir='o')),
-                    Subsignal("rwds",   Pins("7+", conn=("gpio", 0), dir='io')),
-
-                    Subsignal("dq",     Pins("3- 2- 1- 0- 0+ 1+ 2+ 3+", conn=("gpio", 0), dir='io')),
-
-                    Attrs(IO_TYPE="LVCMOS33"),
-                )
-            ])
-
-            plat_hram = platform.request("hyperram", 0)
+            plat_hram = platform.request("hyperbus", 0)
             m.d.comb += [
                 plat_hram.clk.o.eq(hram.clk_o),
-                plat_hram.csn.o.eq(hram.csn_o),
-                plat_hram.rstn.o.eq(hram.rstn_o),
+                plat_hram.cs.o.eq(hram.csn_o),
 
-                plat_hram.rwds.o.eq(hram.rwds_o),
-                plat_hram.rwds.oe.eq(hram.rwds_oe),
-                hram.rwds_i.eq(plat_hram.rwds.i),
+                plat_hram.rd.o.eq(hram.rwds_o),
+                plat_hram.rd.oe.eq(hram.rwds_oe),
+                hram.rwds_i.eq(plat_hram.rd.i),
 
-                plat_hram.dq.o.eq(hram.dq_o),
-                plat_hram.dq.oe.eq(hram.dq_oe),
-                hram.dq_i.eq(plat_hram.dq.i),
+                plat_hram.data.o.eq(hram.dq_o),
+                plat_hram.data.oe.eq(hram.dq_oe),
+                hram.dq_i.eq(plat_hram.data.i),
             ]
         return hram
 

@@ -46,7 +46,7 @@ class StormSoC(SoCWrapper):
         # We need a Wishbone arbiter as the Minerva CPU has instruction and data cache buses, which are both master
         self._arbiter = wishbone.Arbiter(addr_width=30, data_width=32, granularity=8)
 
-        # A Wishbone decoder for the memory snd peripherals
+        # A Wishbone decoder for the memory and peripherals
         self._decoder = wishbone.Decoder(addr_width=30, data_width=32, granularity=8)
 
         # Use a Minerva CPU without a cache
