@@ -105,8 +105,5 @@ class SoCWrapper(Elaboratable):
             m.domains.sync = ClockDomain()
             m.d.comb += ClockSignal().eq(platform.clk)
             m.d.comb += ResetSignal().eq(platform.rst)
-        else:
-            clk25 = platform.request("clk25")
-            m.domains.sync = ClockDomain()
-            m.d.comb += ClockSignal().eq(clk25.i)
+
         return m
