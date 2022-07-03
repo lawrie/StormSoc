@@ -1,3 +1,4 @@
+from peripheral.seg7 import Seg7Peripheral
 from wrapper import SoCWrapper
 from software.soft_gen import SoftwareGenerator
 
@@ -38,6 +39,7 @@ class StormSoC(SoCWrapper):
         # CSR regions
         self.led_gpio_base = 0xb1000000
         self.uart_base = 0xb2000000
+        self.seg7_base = 0xb3000000
 
     def elaborate(self, platform):
         # Elaborate the wrapper
@@ -85,6 +87,11 @@ class StormSoC(SoCWrapper):
             pins=super().get_uart(m, platform))
         self._decoder.add(self.uart.bus, addr=self.uart_base)
 
+        self.seg7 = Seg7Peripheral(
+            pins=super().get_seg7(m, platform)
+        )
+        self._decoder.add(self.seg7.bus, addr=self.seg7_base)
+
         # Add all the submodules
         m.submodules.arbiter  = self._arbiter
         m.submodules.cpu      = self.cpu
@@ -93,6 +100,7 @@ class StormSoC(SoCWrapper):
         m.submodules.sram     = self.sram
         m.submodules.gpio     = self.gpio
         m.submodules.uart     = self.uart
+        m.submodules.seg7     = self.seg7
 
         m.d.comb += [
             # Connect the arbiter to the decoder
@@ -115,6 +123,7 @@ class StormSoC(SoCWrapper):
 
         sw.add_periph("gpio", "LED_GPIO", self.led_gpio_base)
         sw.add_periph("uart", "UART0", self.uart_base)
+        sw.add_periph("seg7", "SEG70", self.seg7_base)
 
         sw.generate("software/generated")
 

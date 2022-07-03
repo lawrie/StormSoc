@@ -9,7 +9,25 @@ from amaranth_orchard.base.gpio import GPIOPins
 from amaranth_orchard.io.uart import UARTPins
 from amaranth_orchard.memory.hyperram import HyperRAMPins
 
+from peripheral.seg7 import Seg7Pins
+
+from typing import List
+
 BLADE = 1
+SEG7_TILE = 3
+
+PINMAP = {"a": "6", "b": "8", "c": "12", "d": "10", "e": "7", "f": "5", "g": "4", "dp": "9", "ca": "3 2 1"}
+
+
+def tile_resources(tile: int) -> List:
+    signals = [
+        Subsignal(signal,
+                  Pins(pin, invert=True, dir="o", conn=("tile", tile)),
+                  Attrs(IO_STANDARD="SB_LVCMOS")
+                  ) for signal, pin in PINMAP.items()
+    ]
+
+    return [Resource("seven_seg_tile", 0, *signals)]
 
 class SoCWrapper(Elaboratable):
     """
@@ -62,6 +80,20 @@ class SoCWrapper(Elaboratable):
                 uart.rx_i.eq(ext_uart.rx)
             ]
         return uart
+
+    def get_seg7(self, m, platform):
+        seg7 = Seg7Pins()
+
+        platform.add_resources(tile_resources(SEG7_TILE))
+
+        seg7_pins = platform.request("seven_seg_tile")
+
+        m.d.comb += [
+            Cat([seg7_pins.a,seg7_pins.b, seg7_pins.c, seg7_pins.d,
+                 seg7_pins.e, seg7_pins.f, seg7_pins.g]).eq(seg7.leds),
+            seg7_pins.ca.eq(seg7.ca)
+        ]
+        return seg7
 
     def get_hram(self, m, platform):
         # HyperRam on the Blackice Nxt board
