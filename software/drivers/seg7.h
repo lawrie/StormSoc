@@ -1,5 +1,5 @@
 #ifndef SEG7_H
-#define SEG&_H
+#define SEG7_H
 
 #include <stdint.h>
 
