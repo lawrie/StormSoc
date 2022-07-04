@@ -13,6 +13,9 @@ from amaranth_orchard.memory.sram import SRAMPeripheral
 
 from mystorm_boards.icelogicbus import *
 
+from peripheral.seg7 import Seg7Peripheral
+from peripheral.lcd import LcdPeripheral
+
 def readbios():
     """ Read bios.bin into an array of integers """
     f = open("software/bios.bin","rb")
@@ -39,6 +42,8 @@ class StormHyperSoC(SoCWrapper):
         # CSR regions
         self.led_gpio_base = 0xb1000000
         self.uart_base = 0xb2000000
+        self.seg7_base = 0xb3000000
+        self.lcd_base = 0xb4000000
         self.hram_ctrl_base = 0xb5000000
 
     def elaborate(self, platform):
@@ -73,7 +78,7 @@ class StormHyperSoC(SoCWrapper):
         self.rom.init = readbios()
         self._decoder.add(self.rom.bus, addr=self.rom_base)
 
-        self.hyperram = HyperRAM(pins=super().get_hram(m, platform))
+        self.hyperram = HyperRAM(pins=super().get_hram(m, platform), init_latency=12)
         self._decoder.add(self.hyperram.data_bus, addr=self.hyperram_base)
         self._decoder.add(self.hyperram.ctrl_bus, addr=self.hram_ctrl_base)
 
@@ -87,6 +92,16 @@ class StormHyperSoC(SoCWrapper):
             pins=super().get_uart(m, platform))
         self._decoder.add(self.uart.bus, addr=self.uart_base)
 
+        self.seg7 = Seg7Peripheral(
+            pins=super().get_seg7(m, platform)
+        )
+        self._decoder.add(self.seg7.bus, addr=self.seg7_base)
+
+        self.lcd = LcdPeripheral(
+            pins=super().get_lcd(m, platform)
+        )
+        self._decoder.add(self.lcd.bus, addr=self.lcd_base)
+
         # Add all the submodules
         m.submodules.arbiter  = self._arbiter
         m.submodules.cpu      = self.cpu
@@ -95,6 +110,8 @@ class StormHyperSoC(SoCWrapper):
         m.submodules.hyperram  = self.hyperram
         m.submodules.gpio     = self.gpio
         m.submodules.uart     = self.uart
+        m.submodules.seg7 = self.seg7
+        m.submodules.lcd = self.lcd
 
         m.d.comb += [
             # Connect the arbiter to the decoder
@@ -117,6 +134,8 @@ class StormHyperSoC(SoCWrapper):
 
         sw.add_periph("gpio", "LED_GPIO", self.led_gpio_base)
         sw.add_periph("uart", "UART0", self.uart_base)
+        sw.add_periph("seg7", "SEG70", self.seg7_base)
+        sw.add_periph("lcd", "LCD0", self.lcd_base)
 
         sw.generate("software/generated")
 

@@ -109,7 +109,7 @@ class StormSoC(SoCWrapper):
         m.submodules.gpio     = self.gpio
         m.submodules.uart     = self.uart
         m.submodules.seg7     = self.seg7
-        m.submodules.lcd = self.lcd
+        m.submodules.lcd      = self.lcd
 
         m.d.comb += [
             # Connect the arbiter to the decoder
