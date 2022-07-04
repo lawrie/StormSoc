@@ -1,7 +1,3 @@
-from peripheral.seg7 import Seg7Peripheral
-from wrapper import SoCWrapper
-from software.soft_gen import SoftwareGenerator
-
 from amaranth import *
 from amaranth_soc import wishbone
 
@@ -12,6 +8,12 @@ from amaranth_orchard.io.uart import UARTPeripheral
 from amaranth_orchard.memory.sram import SRAMPeripheral
 
 from mystorm_boards.icelogicbus import *
+
+from wrapper import SoCWrapper
+from software.soft_gen import SoftwareGenerator
+
+from peripheral.seg7 import Seg7Peripheral
+from peripheral.lcd import LcdPeripheral
 
 def readbios():
     """ Read bios.bin into an array of integers """
@@ -40,6 +42,7 @@ class StormSoC(SoCWrapper):
         self.led_gpio_base = 0xb1000000
         self.uart_base = 0xb2000000
         self.seg7_base = 0xb3000000
+        self.lcd_base = 0xb4000000
 
     def elaborate(self, platform):
         # Elaborate the wrapper
@@ -92,6 +95,11 @@ class StormSoC(SoCWrapper):
         )
         self._decoder.add(self.seg7.bus, addr=self.seg7_base)
 
+        self.lcd = LcdPeripheral(
+            pins=super().get_lcd(m, platform)
+        )
+        self._decoder.add(self.lcd.bus, addr=self.lcd_base)
+
         # Add all the submodules
         m.submodules.arbiter  = self._arbiter
         m.submodules.cpu      = self.cpu
@@ -101,6 +109,7 @@ class StormSoC(SoCWrapper):
         m.submodules.gpio     = self.gpio
         m.submodules.uart     = self.uart
         m.submodules.seg7     = self.seg7
+        m.submodules.lcd = self.lcd
 
         m.d.comb += [
             # Connect the arbiter to the decoder
@@ -124,6 +133,7 @@ class StormSoC(SoCWrapper):
         sw.add_periph("gpio", "LED_GPIO", self.led_gpio_base)
         sw.add_periph("uart", "UART0", self.uart_base)
         sw.add_periph("seg7", "SEG70", self.seg7_base)
+        sw.add_periph("lcd", "LCD0", self.lcd_base)
 
         sw.generate("software/generated")
 

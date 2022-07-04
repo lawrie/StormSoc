@@ -1,19 +1,17 @@
 from amaranth import *
 from amaranth.build import *
-from amaranth.lib.cdc import ResetSynchronizer
-from amaranth_boards.ulx3s import *
-from amaranth_boards.ulx3s import *
 
-from amaranth_orchard.memory.spimemio import QSPIPins
 from amaranth_orchard.base.gpio import GPIOPins
 from amaranth_orchard.io.uart import UARTPins
 from amaranth_orchard.memory.hyperram import HyperRAMPins
 
 from peripheral.seg7 import Seg7Pins
+from peripheral.lcd import LcdPins
 
 from typing import List
 
-BLADE = 1
+LED_BLADE = 1
+LCD_BLADE = 3
 SEG7_TILE = 3
 
 PINMAP = {"a": "6", "b": "8", "c": "12", "d": "10", "e": "7", "f": "5", "g": "4", "dp": "9", "ca": "3 2 1"}
@@ -44,7 +42,7 @@ class SoCWrapper(Elaboratable):
         platform.add_resources([
             Resource("leds6", 0,
                      Subsignal("leds",
-                               Pins("1 2 3 4 5 6", dir="o", invert=True, conn=("blade", BLADE)),
+                               Pins("1 2 3 4 5 6", dir="o", invert=True, conn=("blade", LED_BLADE)),
                                Attrs(IO_STANDARD="SB_LVCMOS")
                                )
                      )
@@ -94,6 +92,33 @@ class SoCWrapper(Elaboratable):
             seg7_pins.ca.eq(seg7.ca)
         ]
         return seg7
+
+    def get_lcd(self, m, platform):
+        lcd = LcdPins()
+
+        platform.add_resources([
+            Resource("oled", 0,
+                     Subsignal("oled_bl", Pins("1", dir="o", conn=("blade", LCD_BLADE))),
+                     Subsignal("oled_resn", Pins("2", dir="o", conn=("blade", LCD_BLADE))),
+                     Subsignal("oled_csn", Pins("3", dir="o", conn=("blade", LCD_BLADE))),
+                     Subsignal("oled_clk", Pins("4", dir="o", conn=("blade", LCD_BLADE))),
+                     Subsignal("oled_dc", Pins("5", dir="o", conn=("blade", LCD_BLADE))),
+                     Subsignal("oled_mosi", Pins("6", dir="o", conn=("blade", LCD_BLADE))),
+                     Attrs(IO_STANDARD="SB_LVCMOS"))
+        ])
+
+        oled_pins =  seg7_pins = platform.request("oled")
+
+        m.d.comb += [
+            oled_pins.oled_clk.eq(lcd.sclk),
+            oled_pins.oled_bl.eq(0),
+            oled_pins.oled_resn.eq(lcd.resn),
+            oled_pins.oled_csn.eq(lcd.csn),
+            oled_pins.oled_dc.eq(lcd.dc),
+            oled_pins.oled_mosi.eq(lcd.copi)
+        ]
+
+        return lcd
 
     def get_hram(self, m, platform):
         # HyperRam on the Blackice Nxt board
