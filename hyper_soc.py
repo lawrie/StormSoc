@@ -78,7 +78,7 @@ class StormHyperSoC(SoCWrapper):
         self.rom.init = readbios()
         self._decoder.add(self.rom.bus, addr=self.rom_base)
 
-        self.hyperram = HyperRAM(pins=super().get_hram(m, platform), init_latency=12)
+        self.hyperram = HyperRAM(pins=super().get_hram(m, platform), init_latency=6)
         self._decoder.add(self.hyperram.data_bus, addr=self.hyperram_base)
         self._decoder.add(self.hyperram.ctrl_bus, addr=self.hram_ctrl_base)
 

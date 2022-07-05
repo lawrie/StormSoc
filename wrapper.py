@@ -129,7 +129,8 @@ class SoCWrapper(Elaboratable):
             plat_hram = platform.request("hyperbus", 0)
             m.d.comb += [
                 plat_hram.clk.o.eq(hram.clk_o),
-                plat_hram.cs.o.eq(hram.csn_o),
+                plat_hram.cs.o[0].eq(hram.csn_o),
+                plat_hram.cs.o[1].eq(1),
 
                 plat_hram.rd.o.eq(hram.rwds_o),
                 plat_hram.rd.oe.eq(hram.rwds_oe),
