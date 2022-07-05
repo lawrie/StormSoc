@@ -10,6 +10,8 @@ void main() {
 
     uint16_t color = 0;
 
+    lcd_puts(LCD0, 7, 5, "Hello World!");
+
 	while(1) {
 		LED_GPIO->out = LED_GPIO->out + 1;
 		SEG70->val = color >> 4;
