@@ -19,3 +19,18 @@ The Soc includes other peripheral cores for the Blackice 7-segment tile, and the
 
 Two SoCs are supported: a minimal BRAM version(soc.py) and a HyperRAM version(hypersoc.py).
 
+## Remote loading
+
+It is possible to stop the CPU, load a new program, and execute it, remotely from the PC.
+
+This is done by:
+
+```python
+send_reset(True)
+send_file("software/bios.test")
+send_reset(False)
+```
+
+after programming the bitstream with `platform.build(... do_program=True)`.
+
+
