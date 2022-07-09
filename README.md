@@ -11,7 +11,7 @@ It runs on the [Blackice Nxt](https://github.com/folknology/BlackIceNxt) ice40 F
 One reason to use amaranth-orchard rather than, say, [lambdasoc](https://github.com/lambdaconcept/lambdasoc) is that amaranth-orchard has a HyperRAM controller,
 and the Blackice Nxt board includes HyperRAM.
 
-The Blackice Nxt board also supports HyperFlash, but there is currebtly no controller for that.
+The Blackice Nxt board also supports HyperFlash, but there is currently no controller for that.
 
 The peripherals from amaranth-orchard that are used are the uart and the LED gpio peripherals. The uart currently needs an external USB to serial devices (such as an FTDI one), plugged into Pmod pins. The LED gpio peripheral uses the single led on the IceLogicBus board, plus 6 leds on an LED blade.
 
