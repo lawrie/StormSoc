@@ -4,17 +4,23 @@ from software.soft_gen import SoftwareGenerator
 
 from amaranth import *
 from amaranth_soc import wishbone
+from amaranth.hdl.xfrm import ResetInserter
 
 from minerva.core import Minerva
 
 from amaranth_orchard.base.gpio import GPIOPeripheral
 from amaranth_orchard.io.uart import UARTPeripheral
-from amaranth_orchard.memory.sram import SRAMPeripheral
+from peripheral.sram import SRAMPeripheral
 
 from mystorm_boards.icelogicbus import *
 
 from peripheral.seg7 import Seg7Peripheral
 from peripheral.lcd import LcdPeripheral
+
+from pll import PLL
+from qspimem import QspiMem
+
+import time
 
 def readbios():
     """ Read bios.bin into an array of integers """
@@ -50,6 +56,37 @@ class StormHyperSoC(SoCWrapper):
         # Elaborate the wrapper
         m = super().elaborate(platform)
 
+        # Qspi domain
+        clk_freq = 100000000
+        # Create a Pll for higher speed clock
+        m.submodules.pll = pll = PLL(freq_in_mhz=int(platform.default_clk_frequency / 1e6),
+                                     freq_out_mhz=int(clk_freq / 1e6),
+                                     domain_name="qspi")
+        # Set the sync domain to the pll domain
+        m.domains.qspi = cd_qspi = pll.domain
+        m.d.comb += pll.clk_pin.eq(ClockSignal())
+        platform.add_clock_constraint(cd_qspi.clk, clk_freq)
+
+        # Add QspiMem submodule
+        m.submodules.qspimem = qspimem = QspiMem(domain="qspi")
+
+        # Connect pins
+        qspi = platform.request("qspi")
+        led = platform.request("led")
+        m.d.comb += [
+            qspimem.qss.eq(qspi.cs),
+            qspimem.qck.eq(qspi.clk),
+            qspimem.qd_i.eq(qspi.data.i),
+            qspi.data.o.eq(qspimem.qd_o),
+            qspi.data.oe.eq(qspimem.qd_oe)
+        ]
+
+        cpu_reset = Signal()
+        with m.If(qspimem.wr & (qspimem.addr == 0x10000)):
+            m.d.qspi += cpu_reset.eq(qspimem.dout[0])
+
+        m.d.sync += led.eq(cpu_reset)
+
         # We need a Wishbone arbiter as the Minerva CPU has instruction and data cache buses, which are both master
         self._arbiter = wishbone.Arbiter(addr_width=30, data_width=32, granularity=8)
 
@@ -57,8 +94,8 @@ class StormHyperSoC(SoCWrapper):
         self._decoder = wishbone.Decoder(addr_width=30, data_width=32, granularity=8)
 
         # Use a Minerva CPU without a cache
-        self.cpu = Minerva(with_icache=False, icache_nlines=8, icache_limit=0x800,
-                           with_dcache=False, dcache_nlines=8, dcache_limit=0x400)
+        self.cpu = ResetInserter(cpu_reset)(Minerva(with_icache=False, icache_nlines=8, icache_limit=0x800,
+                           with_dcache=False, dcache_nlines=8, dcache_limit=0x400))
 
         # Create wishbone buses for the cpu instruction and data caches. Needed even for dummy caches
         self.ibus = wishbone.Interface(addr_width=30, data_width=32, granularity=8,
@@ -74,11 +111,22 @@ class StormHyperSoC(SoCWrapper):
         self._arbiter.add(self.dbus)
 
         # Create a BRAM Rom and load the Bios into it and add it to the decoder
-        self.rom =  SRAMPeripheral(size=self.rom_size, writable=False)
+        self.rom =  SRAMPeripheral(size=self.rom_size, loadable=True, writable=False)
         self.rom.init = readbios()
         self._decoder.add(self.rom.bus, addr=self.rom_base)
 
-        self.hyperram = HyperRAM(pins=super().get_hram(m, platform), init_latency=6)
+        # Load interface
+        din = Signal(24)
+        m.d.comb += [
+            self.rom.addr.eq(qspimem.addr[2:]),
+            self.rom.wr.eq(qspimem.wr & (qspimem.addr < 0x10000) & (qspimem.addr[:2] == 3)),
+            self.rom.din.eq(Cat(din, qspimem.dout))
+        ]
+
+        with m.If(qspimem.wr & (qspimem.addr < 0x10000) & (qspimem.addr[:2] < 3)):
+            m.d.qspi += din.eq(Cat(din[8:], qspimem.dout))
+
+        self.hyperram = HyperRAM(pins=super().get_hram(m, platform), init_latency=7)
         self._decoder.add(self.hyperram.data_bus, addr=self.hyperram_base)
         self._decoder.add(self.hyperram.ctrl_bus, addr=self.hram_ctrl_base)
 
@@ -141,8 +189,31 @@ class StormHyperSoC(SoCWrapper):
 
         return m
 
+def send_file(fn):
+    data = bytearray()
+    with open(fn,"rb") as f:
+        byte = f.read(1)
+        while byte:
+            data += byte
+            byte = f.read(1)
+    addr = 0
+    command = b'\x03' + addr.to_bytes(4, 'big') + len(data).to_bytes(4, 'big') + data
+    print("Sending file: ", fn)
+    platform.bus_send(command)
+
+
 if __name__ == "__main__":
     platform = IceLogicBusPlatform()
-    platform.build(StormHyperSoC(), do_program=True)
-
+    platform.build(StormHyperSoC(), nextpnr_opts="--timing-allow-fail", do_program=True)
+    time.sleep(5)
+    addr = 0x10000
+    data = b'\x01'
+    command = b'\x03' + addr.to_bytes(4, 'big') + len(data).to_bytes(4, 'big') + data
+    print("Sending command: ", command)
+    platform.bus_send(command)
+    send_file("software/bios.test")
+    data = b'\x00'
+    command = b'\x03' + addr.to_bytes(4, 'big') + len(data).to_bytes(4, 'big') + data
+    print("Sending command: ", command)
+    platform.bus_send(command)
 

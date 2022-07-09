@@ -53,10 +53,8 @@ class SoCWrapper(Elaboratable):
             pass
         else:
             leds6 = platform.request("leds6")
-            led = platform.request("led")
             m.d.comb += [
-                leds6.eq(leds.o[1:]),
-                led.eq(leds.o[0])
+                leds6.eq(leds.o),
             ]
 
         return leds
