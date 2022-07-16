@@ -2,6 +2,8 @@
 
 #include "generated/soc.h"
 
+#define HF ((volatile unsigned int *const)0x20000000)
+
 void main() {
 	puts("StormSoc\n");
 
@@ -14,7 +16,9 @@ void main() {
 
 	while(1) {
 		LED_GPIO->out = LED_GPIO->out + 1;
-		SEG70->val = color >> 4;
+		//SEG70->val = color >> 4;
+		SEG70->val = HF[0];
+
 		LCD0->color = color;
 		color += 16;
 		for(int i=0;i<100000;i++) asm volatile ("");

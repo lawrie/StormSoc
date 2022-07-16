@@ -7,6 +7,8 @@ from amaranth_orchard.base.gpio import GPIOPeripheral
 from amaranth_orchard.io.uart import UARTPeripheral
 from amaranth_orchard.memory.sram import SRAMPeripheral
 
+from memory.hyperflash import HyperFlash
+
 from mystorm_boards.icelogicbus import *
 
 from wrapper import SoCWrapper
@@ -37,6 +39,8 @@ class StormSoC(SoCWrapper):
         self.rom_size = 2 * 1024  # 2KiB
         self.sram_base = 0x10000000
         self.sram_size = 1*1024 # 1KiB
+        self.hf_base = 0x20000000
+        self.hf_size = 1 * 1024
 
         # CSR regions
         self.led_gpio_base = 0xb1000000
@@ -80,6 +84,9 @@ class StormSoC(SoCWrapper):
         self.sram = SRAMPeripheral(size=self.sram_size)
         self._decoder.add(self.sram.bus, addr=self.sram_base)
 
+        self.hyperflash = HyperFlash(pins=super().get_hflash(m, platform), init_latency=16)
+        self._decoder.add(self.hyperflash.data_bus, addr=self.hf_base)
+
         # Create the GPIO peripheral and add it to the decoder
         self.gpio = GPIOPeripheral(pins=super().get_led_gpio(m, platform))
         self._decoder.add(self.gpio.bus, addr=self.led_gpio_base)
@@ -110,6 +117,7 @@ class StormSoC(SoCWrapper):
         m.submodules.uart     = self.uart
         m.submodules.seg7     = self.seg7
         m.submodules.lcd      = self.lcd
+        m.submodules.hyperflash = self.hyperflash
 
         m.d.comb += [
             # Connect the arbiter to the decoder

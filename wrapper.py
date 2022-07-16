@@ -140,6 +140,28 @@ class SoCWrapper(Elaboratable):
             ]
         return hram
 
+    def get_hflash(self, m, platform):
+        # HyperRam on the Blackice Nxt board
+        hram = HyperRAMPins(cs_count=1)
+        if self.is_sim(platform):
+            m.submodules.hram = platform.add_model("hyperram_model", hram, edge_det=['clk_o', ])
+        else:
+            plat_hram = platform.request("hyperbus", 0)
+            m.d.comb += [
+                plat_hram.clk.o.eq(hram.clk_o),
+                plat_hram.cs.o[1].eq(hram.csn_o),
+                plat_hram.cs.o[0].eq(1),
+
+                plat_hram.rd.o.eq(hram.rwds_o),
+                plat_hram.rd.oe.eq(hram.rwds_oe),
+                hram.rwds_i.eq(plat_hram.rd.i),
+
+                plat_hram.data.o.eq(hram.dq_o),
+                plat_hram.data.oe.eq(hram.dq_oe),
+                hram.dq_i.eq(plat_hram.data.i),
+            ]
+        return hram
+
     def elaborate(self, platform):
         m = Module()
 

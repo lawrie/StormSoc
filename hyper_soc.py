@@ -22,6 +22,7 @@ from qspimem import QspiMem
 
 import time
 
+
 def readbios():
     """ Read bios.bin into an array of integers """
     f = open("software/bios.bin","rb")
@@ -34,6 +35,7 @@ def readbios():
             break
     f.close()
     return l
+
 
 class StormHyperSoC(SoCWrapper):
     def __init__(self):
@@ -189,6 +191,20 @@ class StormHyperSoC(SoCWrapper):
 
         return m
 
+
+def send_cmd(addr, data, debug=True):
+    command = b'\x03' + addr.to_bytes(4, 'big') + len(data).to_bytes(4, 'big') + data
+    if debug:
+        print("Sending command: ", command)
+    platform.bus_send(command)
+
+
+def send_reset(rst):
+    addr = 0x10000
+    data = b"\x01" if rst else b"\x00"
+    send_cmd(addr, data)
+
+
 def send_file(fn):
     data = bytearray()
     with open(fn,"rb") as f:
@@ -196,24 +212,14 @@ def send_file(fn):
         while byte:
             data += byte
             byte = f.read(1)
-    addr = 0
-    command = b'\x03' + addr.to_bytes(4, 'big') + len(data).to_bytes(4, 'big') + data
     print("Sending file: ", fn)
-    platform.bus_send(command)
+    send_cmd(0, data, debug=False)
 
 
 if __name__ == "__main__":
     platform = IceLogicBusPlatform()
     platform.build(StormHyperSoC(), nextpnr_opts="--timing-allow-fail", do_program=True)
     time.sleep(5)
-    addr = 0x10000
-    data = b'\x01'
-    command = b'\x03' + addr.to_bytes(4, 'big') + len(data).to_bytes(4, 'big') + data
-    print("Sending command: ", command)
-    platform.bus_send(command)
+    send_reset(True)
     send_file("software/bios.test")
-    data = b'\x00'
-    command = b'\x03' + addr.to_bytes(4, 'big') + len(data).to_bytes(4, 'big') + data
-    print("Sending command: ", command)
-    platform.bus_send(command)
-
+    send_reset(False)
