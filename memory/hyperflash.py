@@ -28,7 +28,7 @@ class HyperFlashPins(Record):
             ("rwds_oe", 1),
             ("rwds_i", 1),
             ("dq_o", 8),
-            ("dq_oe", 8),
+            ("dq_oe", 1),
             ("dq_i", 8),
         ]
         super().__init__(layout)
