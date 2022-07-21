@@ -7,6 +7,8 @@ from amaranth_orchard.base.gpio import GPIOPeripheral
 from amaranth_orchard.io.uart import UARTPeripheral
 from amaranth_orchard.memory.sram import SRAMPeripheral
 
+from memory.hyperflash import HyperFlash
+
 from mystorm_boards.icelogicbus import *
 
 from wrapper import SoCWrapper
@@ -16,29 +18,15 @@ from peripheral.seg7 import Seg7Peripheral
 from peripheral.lcd import LcdPeripheral
 
 
-def readbios():
-    """ Read bios.bin into an array of integers """
-    f = open("software/bios.bin", "rb")
-    l = []
-    while True:
-        b = f.read(4)
-        if b:
-            l.append(int.from_bytes(b, "little"))
-        else:
-            break
-    f.close()
-    return l
-
-
-class StormSoC(SoCWrapper):
+class HfSoC(SoCWrapper):
     def __init__(self):
         super().__init__()
 
         # Memory regions
         self.rom_base = 0x00000000
-        self.rom_size = 2 * 1024  # 2KiB
+        self.rom_size = 16 * 1024  # 16KiB
         self.sram_base = 0x10000000
-        self.sram_size = 1*1024 # 1KiB
+        self.sram_size = 4*1024  # 4KiB
 
         # CSR regions
         self.led_gpio_base = 0xb1000000
@@ -56,8 +44,8 @@ class StormSoC(SoCWrapper):
         # A Wishbone decoder for the memory and peripherals
         self._decoder = wishbone.Decoder(addr_width=30, data_width=32, granularity=8)
 
-        # Use a Minerva CPU without a cache
-        self.cpu = Minerva(with_icache=False, icache_nlines=8, icache_limit=0x800,
+        # Use a Minerva CPU without a small instruction cache and no data cache
+        self.cpu = Minerva(with_icache=True, icache_nlines=8, icache_limit=0x800,
                            with_dcache=False, dcache_nlines=8, dcache_limit=0x400)
 
         # Create wishbone buses for the cpu instruction and data caches. Needed even for dummy caches
@@ -73,10 +61,9 @@ class StormSoC(SoCWrapper):
         self._arbiter.add(self.ibus)
         self._arbiter.add(self.dbus)
 
-        # Create a BRAM Rom and load the Bios into it and add it to the decoder
-        self.rom =  SRAMPeripheral(size=self.rom_size, writable=False)
-        self.rom.init = readbios()
-        self._decoder.add(self.rom.bus, addr=self.rom_base)
+        # Create a HyperFlash rom
+        self.rom = HyperFlash(pins=super().get_hflash(m, platform), init_latency=16)
+        self._decoder.add(self.rom.data_bus, addr=self.rom_base)
 
         # Create BRAM RAM and add it to the decoder
         self.sram = SRAMPeripheral(size=self.sram_size)
@@ -125,8 +112,8 @@ class StormSoC(SoCWrapper):
 
         # Generate soc.h, start.S and the linker script
         sw = SoftwareGenerator(
-            rom_start=self.rom_base, rom_size=self.rom_size, # place BIOS in SRAM
-            ram_start=self.sram_base, ram_size=self.sram_size, # place BIOS data in SRAM
+            rom_start=self.rom_base, rom_size=self.rom_size,    # place BIOS in HyperFlash
+            ram_start=self.sram_base, ram_size=self.sram_size,  # place BIOS data in SRAM
         )
 
         sw.add_periph("gpio", "LED_GPIO", self.led_gpio_base)
@@ -141,4 +128,4 @@ class StormSoC(SoCWrapper):
 
 if __name__ == "__main__":
     platform = IceLogicBusPlatform()
-    platform.build(StormSoC(), do_program=True)
+    platform.build(HfSoC(), do_program=True)

@@ -42,13 +42,13 @@ class HyperFlash(Peripheral, Elaboratable):
 
     This core favors portability and ease of use over performance.
     """
-    def __init__(self, *, pins, init_latency=16, index=0):
+    def __init__(self, *, pins, init_latency=16, index=0, capacity=2**24):
         super().__init__()
         self.pins = pins
         self.cs_count = len(self.pins.csn_o)
-        self.size = 2**24 * self.cs_count  # 16MB per CS pin
+        self.size = capacity * self.cs_count  # 16MB per CS pin
         self.init_latency = init_latency
-        # assert self.init_latency in (16) # TODO: anything else possible ?
+        assert self.init_latency == 16
         self.data_bus = wishbone.Interface(addr_width=ceil(log2(self.size / 4)),
                                            data_width=32, granularity=8)
         map = MemoryMap(addr_width=ceil(log2(self.size)), data_width=8)
@@ -151,7 +151,8 @@ class HyperFlash(Peripheral, Elaboratable):
                 ]
                 with m.If(self.data_bus.stb & self.data_bus.cyc & ~self.data_bus.ack):
                     # Is a valid continuation within same page
-                    with m.If((self.data_bus.adr[6:] == latched_adr[6:]) & (self.data_bus.adr[:6] == latched_adr[:6] + 1)):
+                    #with m.If((self.data_bus.adr[6:] == latched_adr[6:]) & (self.data_bus.adr[:6] == latched_adr[:6] + 1)):
+                    with m.If(0):
                         m.d.sync += [
                             sr[:16].eq(0),
                             sr[16:].eq(0),

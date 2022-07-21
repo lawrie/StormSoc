@@ -2,10 +2,8 @@
 
 #include "generated/soc.h"
 
-#define HF ((volatile unsigned int *const)0x20000000)
-
 void main() {
-	puts("StormSoc\n");
+    puts("StormSoc\n");
 
 	LED_GPIO->oe = 1;
 	LED_GPIO->out = 0;
@@ -16,8 +14,7 @@ void main() {
 
 	while(1) {
 		LED_GPIO->out = LED_GPIO->out + 1;
-		//SEG70->val = color >> 4;
-		SEG70->val = HF[0];
+		SEG70->val = color >> 4;
 
 		LCD0->color = color;
 		color += 16;
