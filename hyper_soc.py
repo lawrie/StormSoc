@@ -25,7 +25,7 @@ import time
 
 def readbios():
     """ Read bios.bin into an array of integers """
-    f = open("software/bios.bin","rb")
+    f = open("software/bios.bin", "rb")
     l = []
     while True:
         b = f.read(4)
@@ -43,7 +43,7 @@ class StormHyperSoC(SoCWrapper):
 
         # Memory regions
         self.rom_base = 0x00000000
-        self.rom_size = 2 * 1024  # 2KiB
+        self.rom_size = 4 * 1024  # 4KiB
         self.hyperram_base = 0x10000000
         self.hyperram_size = 1 * 1024  # Use just 1KiB as in SRAM version
 
@@ -96,8 +96,8 @@ class StormHyperSoC(SoCWrapper):
         self._decoder = wishbone.Decoder(addr_width=30, data_width=32, granularity=8)
 
         # Use a Minerva CPU without a cache
-        self.cpu = ResetInserter(cpu_reset)(Minerva(with_icache=False, icache_nlines=8, icache_limit=0x800,
-                           with_dcache=False, dcache_nlines=8, dcache_limit=0x400))
+        self.cpu = ResetInserter(cpu_reset)(Minerva(with_icache=True, icache_nlines=8, icache_limit=0x800,
+                                                    with_dcache=False, dcache_nlines=8, dcache_limit=0x400))
 
         # Create wishbone buses for the cpu instruction and data caches. Needed even for dummy caches
         self.ibus = wishbone.Interface(addr_width=30, data_width=32, granularity=8,
@@ -205,9 +205,9 @@ def send_reset(rst):
     send_cmd(addr, data)
 
 
-def send_file(fn):
+def send_small_file(fn):
     data = bytearray()
-    with open(fn,"rb") as f:
+    with open(fn, "rb") as f:
         byte = f.read(1)
         while byte:
             data += byte
@@ -216,10 +216,32 @@ def send_file(fn):
     send_cmd(0, data, debug=False)
 
 
+def send_file(fn):
+    """ Send file in 256 byte chunks """
+    data = bytearray()
+    addr = 0
+    with open(fn, "rb") as f:
+        print("Sending file: ", fn)
+        byte = f.read(1)
+        n = 0
+        while True:
+            while byte and n < 256:
+                data += byte
+                byte = f.read(1)
+                n += 1
+            print("Sending to address {0}, number of bytes {1}".format(addr, n))
+            send_cmd(addr, data, debug=False)
+            if not byte:
+                break
+            data = bytearray()
+            n = 0
+            addr += 256
+
+
 if __name__ == "__main__":
     platform = IceLogicBusPlatform()
     platform.build(StormHyperSoC(), nextpnr_opts="--timing-allow-fail", do_program=True)
     time.sleep(5)
     send_reset(True)
-    send_file("software/bios.test")
+    send_file("software/bios.save")
     send_reset(False)
